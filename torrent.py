@@ -1,7 +1,6 @@
-from typing import NamedTuple
 import bencode
 from hashlib import sha1
-
+from typing import NamedTuple
 
 class TorrentFile(NamedTuple):
     """
@@ -21,8 +20,7 @@ class Torrent:
             bencode_content = f.read()
             # TODO: Throw error if file can't be decoded?
             self._content = bencode.decode(bencode_content)
-            self._announce = self._content['announce']
-            self._info_hash = sha1(self._content['info']).digest()
+            self._info_hash = sha1(bencode.encode(self._content['info'])).digest()
             self._files = list()  # List of TorrentFile
             self._length = 0
             self._parse_files_and_get_length()
@@ -37,10 +35,12 @@ class Torrent:
         info_dict = self._content['info']
 
         if self.is_multi_file():
+            print('multi_file')
             for file in info_dict['files']:
                 self._files.append(TorrentFile(file['length'], file['path']))
                 self._length += file['length']
         else:
+            print('single_file')
             self._length = info_dict['length']
 
     # TODO: Look into using @property for getter/setter functions
@@ -64,7 +64,7 @@ class Torrent:
         pieces = self._content['info']['pieces']
         return [pieces[i:i+20] for i in range(0, len(pieces), 20)]
 
-    def get_name(self):
+    def get_name(self) -> str:
         """
         In single file mode - the filename
         In multiple file mode - the name of the directory to store all the files
@@ -76,3 +76,15 @@ class Torrent:
         The total size (bytes) for all the files in the torrent.
         """
         return self._length
+
+    def get_info_hash(self) -> bytes:
+        """
+        Hash of the bencoded info dictionary from the .torrent file using SHA1 hash algorithm
+        """
+        return self._info_hash
+
+    def get_announce(self) -> str:
+        """
+        The announce URL of the tracker
+        """
+        return self._content['announce']
